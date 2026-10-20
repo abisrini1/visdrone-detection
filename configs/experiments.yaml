@@ -1,0 +1,71 @@
+# Experiment queue for: python -m src.run_ablations
+# Change ONE variable per experiment relative to the baseline (s_640) so each row answers one question.
+#
+# Batch sizes are conservative for an 8 GB laptop GPU. The smoke test (YOLO11n, batch 8, 640 px) already
+# used ~3.4 GB, and memory grows with model size, batch and resolution. Ultralytics keeps the effective
+# batch at 64 through gradient accumulation (nbs=64), so these per-step batch sizes do not change the
+# optimization. If an experiment shows plenty of free GPU memory (watch the GPU_mem column), raise its
+# batch to train faster. If you see "CUDA out of memory", halve it.
+
+defaults:
+  data: VisDrone.yaml
+  epochs: 50
+  device: 0
+  workers: 4        # if training crashes or hangs on Windows, set this to 0
+  seed: 0
+  project: runs
+
+experiments:
+  # 0. Pipeline check: a few minutes. (python -m src.run_ablations --only smoke)
+  - name: smoke
+    model: yolo11n.pt
+    imgsz: 640
+    epochs: 2
+    batch: 8
+    fraction: 0.05
+    notes: "pipeline smoke test, not a real result"
+
+  # 1. Baseline
+  - name: s_640
+    model: yolo11s.pt
+    imgsz: 640
+    batch: 8
+    notes: "baseline"
+
+  # 2. Input resolution (small objects usually gain a lot)
+  - name: s_960
+    model: yolo11s.pt
+    imgsz: 960
+    batch: 4
+    notes: "resolution ablation"
+  - name: s_1280
+    model: yolo11s.pt
+    imgsz: 1280
+    batch: 2
+    notes: "resolution ablation (tiny batch to fit 8 GB)"
+
+  # 3. Model size at fixed resolution
+  - name: n_640
+    model: yolo11n.pt
+    imgsz: 640
+    batch: 8
+    notes: "model size ablation"
+  - name: m_640
+    model: yolo11m.pt
+    imgsz: 640
+    batch: 4
+    notes: "model size ablation"
+
+  # 4. Augmentation
+  - name: s_640_no_mosaic
+    model: yolo11s.pt
+    imgsz: 640
+    batch: 8
+    mosaic: 0.0
+    notes: "augmentation ablation: mosaic off"
+  - name: s_640_scale_0.9
+    model: yolo11s.pt
+    imgsz: 640
+    batch: 8
+    scale: 0.9
+    notes: "augmentation ablation: stronger scale jitter"

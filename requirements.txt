@@ -1,0 +1,12 @@
+# Install PyTorch FIRST with CUDA support (see README, step 3). It is not listed here on
+# purpose: a plain `pip install torch` on Windows often gives a CPU-only build.
+
+ultralytics>=8.3
+opencv-python
+numpy
+pandas
+matplotlib
+pyyaml
+onnx
+onnxruntime
+pytest

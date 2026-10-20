@@ -1,0 +1,2 @@
+name,model,imgsz,epochs,batch,seed,train_minutes,notes,mAP50,mAP50_95,precision,recall,inference_ms,params_M,arg_fraction
+s_640,yolo11s.pt,640,50,8,0,71.8,baseline,0.3858,0.224,0.5143,0.3991,3.1323,9.43,

@@ -1,0 +1,18 @@
+# environments
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# data and model artifacts (large, reproducible)
+datasets/
+runs/
+exports/
+*.pt
+*.onnx
+*.engine
+*.zip
+*.mp4
+
+# keep result tables and plots in git
+!results/
