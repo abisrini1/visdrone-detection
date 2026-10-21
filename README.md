@@ -180,6 +180,10 @@ TensorRT needs the NVIDIA TensorRT package, which can be fiddly on Windows. If `
 - **Super-resolution of tiles is untested.** The tile-size result suggests that magnifying objects helps; a learned upscaler is the obvious follow-up.
 - **Latency is laptop latency.** Thermal throttling makes timings noisy; the benchmark reports spread (std, p95), not just means.
 
-## Data and licensing
+## License
 
-VisDrone2019-DET (Zhu et al., AISKYEYE team, Tianjin University). The dataset is for academic and non-commercial research; check its terms before reusing it elsewhere. Models use the Ultralytics library, which has its own license (AGPL-3.0 / enterprise): read it before deploying commercially.
+The code in this repository is released under the [MIT License](LICENSE). Free to use, modify and share.
+
+Third-party pieces keep their own terms:
+- **VisDrone2019-DET** (Zhu et al., AISKYEYE team, Tianjin University) is for academic and non-commercial research. Check its terms before reusing the data elsewhere.
+- **Ultralytics** (the YOLO library this code depends on) is licensed AGPL-3.0, with an enterprise license available. This repository does not include Ultralytics code or weights, but read its license before using the combination in a commercial product.
