@@ -26,6 +26,6 @@ try:
 
     print(f"Ultralytics {ultralytics.__version__}")
     print(f"datasets_dir = {SETTINGS['datasets_dir']}")
-    print("            change with: yolo settings datasets_dir=D:/datasets")
+    print("            change with: yolo settings datasets_dir=/path/to/datasets")
 except ImportError:
     print("Ultralytics not installed (pip install -r requirements.txt)")
