@@ -1,3 +1,9 @@
-name,model,imgsz,epochs,batch,seed,train_minutes,notes,mAP50,mAP50_95,precision,recall,inference_ms,params_M,arg_fraction
-s_640,yolo11s.pt,640,50,8,0,71.8,baseline,0.3858,0.224,0.5143,0.3991,3.1323,9.43,
-s_960,yolo11s.pt,960,50,4,0,153.8,resolution ablation,0.4876,0.2917,0.5992,0.4794,7.3284,9.43,
+name,model,imgsz,epochs,batch,seed,train_minutes,notes,mAP50,mAP50_95,precision,recall,inference_ms,params_M,arg_fraction,arg_mosaic,arg_scale
+s_640,yolo11s.pt,640,50,8,0,71.8,baseline,0.3858,0.224,0.5143,0.3991,3.1323,9.43,,,
+s_960,yolo11s.pt,960,50,4,0,153.8,resolution ablation,0.4876,0.2917,0.5992,0.4794,7.3284,9.43,,,
+s_1280,yolo11s.pt,1280,50,2,0,279.5,resolution ablation (tiny batch to fit 8 GB),0.5384,0.3322,0.6214,0.5246,12.3279,9.43,,,
+smoke,yolo11n.pt,640,2,8,0,1.0,"pipeline smoke test, not a real result",0.0731,0.0374,0.4361,0.0935,1.9194,2.61,0.05,,
+n_640,yolo11n.pt,640,50,8,0,55.9,model size ablation,0.307,0.1699,0.4476,0.3284,1.9421,2.61,,,
+m_640,yolo11m.pt,640,50,4,0,155.4,model size ablation,0.4508,0.269,0.5663,0.4497,8.1978,20.06,,,
+s_640_no_mosaic,yolo11s.pt,640,50,8,0,69.4,augmentation ablation: mosaic off,0.3743,0.2168,0.5225,0.3835,3.2844,9.43,,0.0,
+s_640_scale_0.9,yolo11s.pt,640,50,8,0,71.0,augmentation ablation: stronger scale jitter,0.3804,0.219,0.5122,0.3853,3.2548,9.43,,,0.9
