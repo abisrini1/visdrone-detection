@@ -70,13 +70,28 @@ Auto-filled in `results/benchmark.csv`; run `python -m src.plot_pareto` for the 
 
 ### Tracking
 
-| Video | Frames | Proc. FPS | Unique IDs | Mean track length | Tracks < 5 frames |
-|---|---|---|---|---|---|
-| TBD | | | | | |
+| Video | Frames | Proc. FPS | Unique IDs | Mean track length | Median track length | Tracks < 5 frames |
+|---|---|---|---|---|---|---|
+| Stock aerial intersection clip, 1920x1080, 15.7 s | 471 | 26.3 | 266 | 69.5 | 5 | 126 (47%) |
+
+**[Watch the tracking demo (15 s, MP4)](docs/tracking_demo.mp4)**
+
+YOLO11s trained at 960 px with ByteTrack (`python -m src.track`, confidence 0.25), video re-encoded to H.264 so it plays in the browser. Footage: TBD (add the source and creator).
+
+How to read the numbers: the mean track length (69.5 frames) is far above the median (5), so the clip contains a few long, stable tracks (mostly cars, whose IDs stay the same across the whole clip) and many very short ones. Nearly half the tracks last under 5 frames. These are mostly tiny, low-confidence motorbikes and pedestrians that flicker in and out of detection, so the count of 266 unique IDs overstates how many distinct objects were in the scene. These are proxy statistics with no ground-truth identities, so I cannot report ID switches, MOTA or IDF1; for those the next step is TrackEval on a labelled VisDrone-MOT sequence. Processing speed (26 FPS) includes drawing and video writing on a laptop GPU, and is a little below the 30 FPS source rate.
+
+### Examples
+
+Each image is the most crowded 640x640 window of a validation frame. Left to right: ground truth, whole-image detection, tiled + full detection with IoS merge. Blue boxes are predictions (confidence 0.25), red boxes are ground-truth objects that method missed. Generated with `python -m src.show_examples`.
+
+![Example 1](docs/examples/example_1.png)
+![Example 2](docs/examples/example_2.png)
+![Example 3](docs/examples/example_3.png)
+![Example 4](docs/examples/example_4.png)
 
 ### Failure analysis
 
-TBD: add a few annotated images where the model fails (tiny objects, dense crowds, occlusion, motion blur) and what you learned.
+TBD: after looking at the examples above, write 3 or 4 sentences on what still goes wrong (tiny or occluded pedestrians, bicycle and awning-tricycle confusion, dense crowds, motion blur) and what you would try next.
 
 ## Repo layout
 
@@ -93,6 +108,8 @@ src/
   track.py          detection + ByteTrack on video, with track statistics
   plot_pareto.py    accuracy vs latency plot
   report.py         results/*.csv -> markdown tables (results/REPORT.md)
+  show_examples.py  side-by-side detection images (docs/examples)
+  make_gif.py       optional: tracking video -> GIF
 configs/experiments.yaml   the experiment plan
 scripts/check_env.py       verifies PyTorch sees your GPU
 tests/                     unit tests for tiling and metrics

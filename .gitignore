@@ -16,3 +16,6 @@ exports/
 
 # keep result tables and plots in git
 !results/
+
+# the one small demo video that lives in the repo
+!docs/tracking_demo.mp4
