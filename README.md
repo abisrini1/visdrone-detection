@@ -56,17 +56,26 @@ Evaluated on the full val set (548 images) with my own COCO-style evaluator. Til
 
 Size buckets use sqrt(box area) in pixels: small < 32, medium 32-96, large > 96. Medium and large recall, overlap sweeps (0.15 / 0.40, no meaningful change) and merge-threshold sweeps (IoS 0.4 to 0.7, flat) are in `results/tiled.csv`. Per-image timings from this script are noisy on a laptop and are not reported here; use the benchmark below for latency.
 
-### Deployment (batch 1, hardware: RTX 5060 Laptop GPU, 8 GB)
+### Deployment (batch 1, hardware: RTX 5060 Laptop GPU 8 GB, Intel Core Ultra 7 255H)
 
-| Format | Precision | mAP@50-95 | Latency mean (ms) | p95 (ms) | FPS | GPU mem (MiB) |
-|---|---|---|---|---|---|---|
-| PyTorch | FP32 | TBD | TBD | TBD | TBD | TBD |
-| PyTorch | FP16 | TBD | TBD | TBD | TBD | TBD |
-| ONNX | FP32 | TBD | TBD | TBD | TBD | TBD |
-| TensorRT | FP16 | TBD | TBD | TBD | TBD | TBD |
-| TensorRT | INT8 | TBD | TBD | TBD | TBD | TBD |
+End-to-end latency per image (preprocessing, inference and post-processing, images already in memory), 100 val images, 3 timed passes after warm-up, deployment settings (confidence 0.25). Laptop timings vary from run to run, so treat them as approximate; the spread is in the p95 column.
 
-Auto-filled in `results/benchmark.csv`; run `python -m src.plot_pareto` for the accuracy-vs-latency chart.
+| Model | Setup | mAP@50-95 | Latency mean (ms) | p95 (ms) | FPS |
+|---|---|---|---|---|---|
+| s_960 | PyTorch FP32, GPU | 0.292 | 19.3 | 33.8 | 52 |
+| s_960 | PyTorch FP16, GPU | 0.291 | 11.4 | 17.2 | 88 |
+| s_960 | ONNX FP32, CPU | 0.292 | 153.9 | 224.1 | 6.5 |
+| s_1280 | PyTorch FP32, GPU | 0.332 | 35.5 | 50.4 | 28 |
+| s_960 | tiled + full (IoS), FP32, GPU | 0.324 * | 136.4 | 257.4 | 7.3 |
+| s_1280 | tiled + full (IoS), FP32, GPU | 0.346 * | 213.8 | 427.6 | 4.7 |
+
+Rows without a star use Ultralytics' validator. Starred rows use my own evaluator (confidence 0.001) for accuracy, so compare them with each other and with the same evaluator's full-image numbers in the tiling table (0.288 for s_960, 0.330 for s_1280), not with the other rows here.
+
+What the table shows:
+- **FP16 is a free speedup:** about 1.7x faster than FP32 with no measurable accuracy loss (0.291 vs 0.292 mAP@50-95).
+- **ONNX export is lossless** (same accuracy as PyTorch), but the CPU is about 8x slower than the GPU at this resolution. ONNX was only benchmarked on the CPU, because the GPU runtime package was not installed.
+- **Tiling is expensive:** 7 to 11 times the latency of a single pass for the accuracy gain shown in the tiling table, so it is an offline accuracy mode here, not a real-time one.
+- **TensorRT was not tested:** the package was not installed, so no TensorRT numbers are reported.
 
 ### Tracking
 
