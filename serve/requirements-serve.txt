@@ -1,0 +1,12 @@
+# Service dependencies. PyTorch and TensorRT come from the base image (see serve/Dockerfile),
+# so they are deliberately not listed here. For a local run, install PyTorch with CUDA first
+# (see the main README), then:  pip install -r requirements.txt -r serve/requirements-serve.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+prometheus-client>=0.20
+opencv-python-headless
+ultralytics>=8.3
+numpy
+# GPU ONNX Runtime (replaces the CPU `onnxruntime` from requirements.txt). Install separately:
+#   pip uninstall -y onnxruntime && pip install onnxruntime-gpu

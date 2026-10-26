@@ -1,0 +1,21 @@
+services:
+  detector:
+    build:
+      context: .
+      dockerfile: serve/Dockerfile
+    image: visdrone-serve
+    ports:
+      - "8000:8000"
+    environment:
+      MODEL_PATH: /models/s_960_960_trt-fp16_dyn16.engine
+      IMGSZ: "960"
+      TILE_BATCH: "16"
+    volumes:
+      - ./exports:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

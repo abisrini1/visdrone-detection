@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install CPU PyTorch, then the project and service dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install fastapi httpx python-multipart prometheus-client ruff
+      - name: Lint the service code
+        run: ruff check --select E,F --line-length 120 serve tests/test_serve.py
+      - name: Run unit tests (CPU only, no dataset or weights)
+        run: python -m pytest -q
