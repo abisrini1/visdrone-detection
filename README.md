@@ -83,7 +83,7 @@ What the table shows:
 |---|---|---|---|---|---|---|
 | Stock aerial intersection clip, 1920x1080, 15.7 s | 471 | 26.3 | 266 | 69.5 | 5 | 126 (47%) |
 
-**[Watch the tracking demo (15 s, MP4)](docs/tracking_demo.mp4)**
+**[Watch the tracking demo (15 s, MP4)](https://github.com/abisrini1/visdrone-detection/raw/main/docs/tracking_demo.mp4)**
 
 YOLO11s trained at 960 px with ByteTrack (`python -m src.track`, confidence 0.25), video re-encoded to H.264 so it plays in the browser. Footage: TBD (add the source and creator).
 
