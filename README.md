@@ -14,7 +14,7 @@ The goal is not just a high mAP number. Each step answers a question with eviden
 These are validation-set results. The single held-out test-dev evaluation is run last, after settings are fixed (see step 7 below).
 
 - **Training resolution is the biggest lever.** YOLO11s goes from 0.386 to 0.488 to 0.538 mAP@50 at 640, 960 and 1280 px, with the largest gains on the smallest classes (bicycle 0.131 to 0.269 to 0.339). Returns diminish: the second step costs about 1.8x the training time for half the gain.
-- **Resolution beat model size at equal training cost.** YOLO11m at 640 px (20.1M parameters) and YOLO11s at 960 px (9.4M parameters) took about the same time to train (155 vs 154 min), and the smaller model at higher resolution won: 0.488 vs 0.451 mAP@50 and 0.292 vs 0.269 mAP@50-95. Inference cost of the two is compared in the deployment table.
+- **Resolution beat model size at equal training cost.** YOLO11m at 640 px (20.1M parameters) and YOLO11s at 960 px (9.4M parameters) took about the same time to train (155 vs 154 min), and the smaller model at higher resolution won: 0.488 vs 0.451 mAP@50 and 0.292 vs 0.269 mAP@50-95.
 - **Tiled inference helps on top of resolution, but the gain shrinks as resolution grows.** Tiling adds +8.5 / +7.1 / +4.4 mAP@50 at 640 / 960 / 1280 (own evaluator), at several times the inference cost.
 - **A single-pass 960 model beats a tiled 640 model on strict accuracy** (mAP@50-95 0.288 vs 0.267) at a fraction of the cost.
 - **Merging with intersection-over-smaller-area (IoS) beats IoU** for combining tile detections (0.451 vs 0.416 mAP@50 for the 640 model), probably because objects cut by a tile border produce partial boxes that IoU does not merge. This explanation is a hypothesis, not tested.
@@ -58,24 +58,46 @@ Size buckets use sqrt(box area) in pixels: small < 32, medium 32-96, large > 96.
 
 ### Deployment (batch 1, hardware: RTX 5060 Laptop GPU 8 GB, Intel Core Ultra 7 255H)
 
-End-to-end latency per image (preprocessing, inference and post-processing, images already in memory), 100 val images, 3 timed passes after warm-up, deployment settings (confidence 0.25). Laptop timings vary from run to run, so treat them as approximate; the spread is in the p95 column.
+End-to-end latency per image (preprocessing, inference and post-processing, images already in memory), 100 val images, 3 timed passes after warm-up, deployment settings (confidence 0.25). Accuracy is Ultralytics' validator on the 548 val images. Laptop timings vary from run to run (about 10%: PyTorch FP32 measured 12.5 ms and 13.7 ms in two runs of identical code), so differences smaller than that are not claimed. The table below was measured back-to-back in one session with a dynamic-batch export (max 16).
 
-| Model | Setup | mAP@50-95 | Latency mean (ms) | p95 (ms) | FPS |
+| Model (s_960) | Setup | mAP@50 | mAP@50-95 | Mean (ms) | p95 (ms) | FPS |
+|---|---|---|---|---|---|---|
+| PyTorch | FP32, GPU | 0.488 | 0.292 | 13.67 | 22.99 | 73 |
+| ONNX Runtime | FP32, GPU | 0.488 | 0.292 | 12.30 | 15.07 | 81 |
+| TensorRT | FP16, GPU | 0.487 | 0.291 | 5.89 | 8.10 | 170 |
+| TensorRT | INT8, GPU | 0.471 | 0.279 | 6.50 | 8.46 | 154 |
+
+What the table shows:
+- **TensorRT FP16 is the clear win:** about 2.1 to 2.3x lower mean latency than PyTorch FP32 (2.8x at p95) for a 0.001 change in mAP@50-95. The range comes from two PyTorch baseline runs.
+- **ONNX Runtime is lossless and has a tighter tail** (p95 15.1 vs 23.0 ms, std 1.5 vs 4.1 ms). Its mean is within the run-to-run noise of PyTorch, so I do not claim a mean speedup.
+- **PyTorch FP16 gave no speedup over FP32** on this GPU (14.6 ms vs 12.5 ms in a separate back-to-back pair, mAP unchanged). An earlier comparison that suggested a 1.7x gain mixed runs from different sessions and is not reported. The TensorRT gain therefore comes from the engine (graph fusion, kernel selection), not from half precision alone; I did not profile this.
+- **INT8 was a negative result:** 10% slower than TensorRT FP16 and 1.3 mAP@50-95 points less accurate (calibrated on 25% of train). I did not profile why. Plausible causes are quantize/dequantize overhead and the low compute intensity of a 9.4M-parameter model; both are untested.
+- **Engines are tied to the GPU and TensorRT version**, so they are not committed. Regenerate with `python -m serve.export_dynamic --weights runs/s_960/weights/best.pt --imgsz 960 --formats onnx trt-fp16 trt-int8 --max-batch 16`.
+
+Earlier-session measurements (a slower session, so **not comparable** with the table above; to be re-measured):
+
+| Model | Setup | mAP@50-95 | Mean (ms) | p95 (ms) | FPS |
 |---|---|---|---|---|---|
-| s_960 | PyTorch FP32, GPU | 0.292 | 19.3 | 33.8 | 52 |
-| s_960 | PyTorch FP16, GPU | 0.291 | 11.4 | 17.2 | 88 |
 | s_960 | ONNX FP32, CPU | 0.292 | 153.9 | 224.1 | 6.5 |
 | s_1280 | PyTorch FP32, GPU | 0.332 | 35.5 | 50.4 | 28 |
 | s_960 | tiled + full (IoS), FP32, GPU | 0.324 * | 136.4 | 257.4 | 7.3 |
 | s_1280 | tiled + full (IoS), FP32, GPU | 0.346 * | 213.8 | 427.6 | 4.7 |
 
-Rows without a star use Ultralytics' validator. Starred rows use my own evaluator (confidence 0.001) for accuracy, so compare them with each other and with the same evaluator's full-image numbers in the tiling table (0.288 for s_960, 0.330 for s_1280), not with the other rows here.
+Starred rows use my own evaluator (confidence 0.001) for accuracy, so compare them with each other and with the same evaluator's full-image numbers in the tiling table (0.288 for s_960, 0.330 for s_1280), not with the other rows here. Tiling costs roughly 7 to 11 times the latency of a single pass, so it is an offline accuracy mode here, not a real-time one.
 
-What the table shows:
-- **FP16 is a free speedup:** about 1.7x faster than FP32 with no measurable accuracy loss (0.291 vs 0.292 mAP@50-95).
-- **ONNX export is lossless** (same accuracy as PyTorch), but the CPU is about 8x slower than the GPU at this resolution. ONNX was only benchmarked on the CPU, because the GPU runtime package was not installed.
-- **Tiling is expensive:** 7 to 11 times the latency of a single pass for the accuracy gain shown in the tiling table, so it is an offline accuracy mode here, not a real-time one.
-- **TensorRT was not tested:** the package was not installed, so no TensorRT numbers are reported.
+### Serving (FastAPI)
+
+`serve/app.py` wraps the model in a FastAPI service: `/predict?mode=full|tiled|tiled_full`, `/health`, and Prometheus `/metrics`. Inference runs under a lock so concurrent requests cannot interleave on one GPU model; JPEG decoding happens outside the lock and uploads are capped at 20 MB. Configuration is by environment variables (`MODEL_PATH`, `IMGSZ`, `HALF`, ...). CI (GitHub Actions) runs ruff and the unit tests on CPU, including the service tests; the Dockerfile has not been built or tested.
+
+Load test (Locust, TensorRT FP16 engine, `full` mode, localhost, same laptop; the load generator shares the machine, so these are lower bounds on what the service could do):
+
+| Concurrent users | Throughput |
+|---|---|
+| 1 | 18 req/s |
+| 4 | 58 req/s |
+| 16 | 72 req/s |
+
+Throughput rises with concurrency because JPEG decoding and response encoding overlap with GPU inference, then flattens as the single model lock becomes the bottleneck (the saturation point is consistent with, but not proven to be, GPU-bound). On Windows use `127.0.0.1` instead of `localhost` in the host URL: the IPv6 fallback added about 2 s to some requests and initially made the service look slow.
 
 ### Tracking
 
@@ -85,22 +107,15 @@ What the table shows:
 
 **[Watch the tracking demo (15 s, MP4)](https://github.com/abisrini1/visdrone-detection/raw/main/docs/tracking_demo.mp4)**
 
-YOLO11s trained at 960 px with ByteTrack (`python -m src.track`, confidence 0.25), video re-encoded to H.264 so it plays in the browser. Footage: TBD (add the source and creator).
+YOLO11s trained at 960 px with ByteTrack (`python -m src.track`, confidence 0.25), video re-encoded to H.264 so it plays in the browser. <!-- TODO: add footage source and creator -->
 
 How to read the numbers: the mean track length (69.5 frames) is far above the median (5), so the clip contains a few long, stable tracks (mostly cars, whose IDs stay the same across the whole clip) and many very short ones. Nearly half the tracks last under 5 frames. These are mostly tiny, low-confidence motorbikes and pedestrians that flicker in and out of detection, so the count of 266 unique IDs overstates how many distinct objects were in the scene. These are proxy statistics with no ground-truth identities, so I cannot report ID switches, MOTA or IDF1; for those the next step is TrackEval on a labelled VisDrone-MOT sequence. Processing speed (26 FPS) includes drawing and video writing on a laptop GPU, and is a little below the 30 FPS source rate.
 
 ### Examples
 
-Each image is the most crowded 640x640 window of a validation frame. Left to right: ground truth, whole-image detection, tiled + full detection with IoS merge. Blue boxes are predictions (confidence 0.25), red boxes are ground-truth objects that method missed. Generated with `python -m src.show_examples`.
+The image shows the most crowded 640x640 window of a validation frame. Left to right: ground truth, whole-image detection, tiled + full detection with IoS merge. Blue boxes are predictions (confidence 0.25), red boxes are ground-truth objects that method missed. Generated with `python -m src.show_examples`.
 
 ![Example 1](docs/examples/example_1.png)
-![Example 2](docs/examples/example_2.png)
-![Example 3](docs/examples/example_3.png)
-![Example 4](docs/examples/example_4.png)
-
-### Failure analysis
-
-TBD: after looking at the examples above, write 3 or 4 sentences on what still goes wrong (tiny or occluded pedestrians, bicycle and awning-tricycle confusion, dense crowds, motion blur) and what you would try next.
 
 ## Repo layout
 
@@ -121,7 +136,8 @@ src/
   make_gif.py       optional: tracking video -> GIF
 configs/experiments.yaml   the experiment plan
 scripts/check_env.py       verifies PyTorch sees your GPU
-tests/                     unit tests for tiling and metrics
+serve/                     FastAPI service, dynamic-batch exports, tile-batch benchmark, Locust load test
+tests/                     unit tests for tiling, metrics and the service
 results/                   CSV tables, JSON, plots (committed)
 ```
 
@@ -190,11 +206,11 @@ Any extra training option can be passed straight through, e.g. `python -m src.tr
 
 ### Hardware notes
 
-Developed on an 8 GB laptop GPU (RTX 5060) with 16 GB RAM using mixed precision. Batch sizes in `configs/experiments.yaml` are sized for 8 GB of VRAM; on a bigger GPU raise them. 1280 px training needs a tiny batch on 8 GB. Ultralytics keeps the effective batch at 64 through gradient accumulation, so per-step batch size differences between experiments do not change the optimization. If data loading hangs (seen on Windows), set `workers: 0`.
+Developed on an 8 GB laptop GPU (RTX 5060) with 32 GB RAM using mixed precision. Batch sizes in `configs/experiments.yaml` are sized for 8 GB of VRAM; on a bigger GPU raise them. 1280 px training needs a tiny batch on 8 GB. Ultralytics keeps the effective batch at 64 through gradient accumulation, so per-step batch size differences between experiments do not change the optimization. If data loading hangs (seen on Windows), set `workers: 0`.
 
 VisDrone images contain up to ~900 objects. Ultralytics raises `max_det` automatically for its own training and validation; this repo's evaluation scripts (`eval_tiled`) default to `--max-det 1000` for the same reason (the usual 300 would cap recall in crowded scenes).
 
-TensorRT needs the NVIDIA TensorRT package, which can be fiddly on Windows. If `trt-*` exports fail, ONNX and PyTorch FP16 still give a useful comparison, and WSL2 is an option for TensorRT.
+TensorRT needs the NVIDIA TensorRT package, which can be fiddly on Windows. If `trt-*` exports fail, ONNX and PyTorch still give a useful comparison, and WSL2 is an option for TensorRT. INT8 export also needs `nvidia-modelopt`.
 
 ## Honest limitations
 
