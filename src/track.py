@@ -17,6 +17,33 @@ from pathlib import Path
 from src.utils import RESULTS_DIR, parse_device
 
 
+def id_color(track_id: int):
+    """Stable BGR colour per track id, so the same object keeps the same colour."""
+    import colorsys
+
+    hue = (track_id * 0.61803398875) % 1.0
+    r, g, b = colorsys.hsv_to_rgb(hue, 0.75, 0.95)
+    return int(b * 255), int(g * 255), int(r * 255)
+
+
+def draw_tracks(frame, boxes, ids, thickness: int = 2, font_scale: float = 0.5):
+    """Thin per-id coloured boxes with a small id number (much less cluttered than r.plot())."""
+    import cv2
+
+    out = frame.copy()
+    for (x1, y1, x2, y2), tid in zip(boxes, ids):
+        color = id_color(int(tid))
+        p1, p2 = (int(x1), int(y1)), (int(x2), int(y2))
+        cv2.rectangle(out, p1, p2, color, thickness)
+        text = str(int(tid))
+        (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, 1)
+        top = max(p1[1] - th - 4, 0)
+        cv2.rectangle(out, (p1[0], top), (p1[0] + tw + 4, top + th + 4), color, -1)
+        cv2.putText(out, text, (p1[0] + 2, top + th + 1), cv2.FONT_HERSHEY_SIMPLEX, font_scale,
+                    (255, 255, 255), 1, cv2.LINE_AA)
+    return out
+
+
 def main():
     import cv2
     import numpy as np
@@ -31,6 +58,8 @@ def main():
     ap.add_argument("--device", default="0")
     ap.add_argument("--max-frames", type=int, default=None)
     ap.add_argument("--out", default=None, help="annotated video path (default: results/<video>_tracked.mp4)")
+    ap.add_argument("--clean", action="store_true",
+                    help="draw thin boxes with small id numbers instead of Ultralytics' class/confidence/id labels")
     args = ap.parse_args()
 
     model = YOLO(args.weights, task="detect")
@@ -48,7 +77,12 @@ def main():
     t0 = time.perf_counter()
     for r in model.track(source=str(src), tracker=args.tracker, persist=True, stream=True,
                          imgsz=args.imgsz, conf=args.conf, device=parse_device(args.device), verbose=False):
-        frame = r.plot()
+        if not args.clean:
+            frame = r.plot()
+        elif r.boxes is not None and r.boxes.id is not None:
+            frame = draw_tracks(r.orig_img, r.boxes.xyxy.cpu().numpy(), r.boxes.id.int().cpu().tolist())
+        else:
+            frame = r.orig_img
         if writer is None:
             h, w = frame.shape[:2]
             writer = cv2.VideoWriter(str(out_path), cv2.VideoWriter_fourcc(*"mp4v"), fps_in, (w, h))
